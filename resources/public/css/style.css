@@ -1,0 +1,63 @@
+#title {
+  text-align: center;
+}
+
+#container {
+}
+
+#code-pane {
+  margin:1em;
+}
+
+#blocks-pane {
+  margin:1em;
+}
+
+#editor + div {
+  border: 3px solid gray;
+  font-size: larger;
+}
+
+
+#block-button {
+  text-align: center;
+}
+
+#block-button button {
+  font-size: larger;
+}
+
+/* ---------------------------------------- */
+/*         style for blocks output          */
+/* ---------------------------------------- */
+
+#blocks {
+  margin-top: 1em;
+  font-family: Monaco;
+  font-size: 10pt;
+}
+
+.block {
+    display: inline-block;
+    vertical-align: middle;
+    padding-top: 5px;
+    padding-left: 10px;
+    padding-right: 10px;
+    margin-bottom: 5px;
+    border: 1pt solid;
+    width: fit-content;
+}
+
+.map {
+    border-radius: 10px;
+    border-color: #669999;
+}
+
+.vec {
+    border-color: #AA3939;
+}
+
+.reg {
+    box-shadow: 3px 3px 3px #888888;
+    border-color: #7B9F35;
+}
