@@ -40,24 +40,25 @@
 .block {
     display: inline-block;
     vertical-align: middle;
-    padding-top: 5px;
-    padding-left: 10px;
-    padding-right: 10px;
-    margin-bottom: 5px;
     border: 1pt solid;
     width: fit-content;
+    padding: 1px;
+    position: relative;
 }
 
-.map {
-    border-radius: 10px;
-    border-color: #669999;
-}
-
-.vec {
-    border-color: #AA3939;
+.block:empty {
+    height:1em;
 }
 
 .reg {
-    box-shadow: 3px 3px 3px #888888;
-    border-color: #7B9F35;
+    border-color: blue; /*#7B9F35;*/
 }
+
+.map {
+    border-color: green; /*#669999;*/
+}
+
+.vec {
+    border-color: red; /*#AA3939;*/
+}
+

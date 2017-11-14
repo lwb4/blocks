@@ -1,10 +1,11 @@
 (ns blocks.core
     (:require [reagent.core :as reagent :refer [atom]]
-              [blocks.util :refer [blockify]]))
+              [blocks.util :refer [blockify]]
+              [blocks.start :refer [source-code-starting]]))
 
 (enable-console-print!)
 
-(def source-code (atom ""))
+(def source-code (atom source-code-starting))
 (def html-out (atom ""))
 
 
@@ -16,7 +17,7 @@
             #js {:mode "clojure"
                  :lineNumbers true
                  :tabSize 2})]
-      (.setValue cm ";; Type some Clojure code here\n")
+      (.setValue cm source-code-starting)
       (.on cm "change" #(reset! source-code (.getValue %))))))
 
 (defn code-pane []

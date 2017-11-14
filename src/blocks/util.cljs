@@ -2,19 +2,20 @@
   (:require [goog.string :as gstring :refer 
               [whitespaceEscape escapeString escapeChar]]))
 
-(def special-chars
-  {"(" ")"
-   "[" "]"
-   "{" "}"
-   "'(" ")"
-   "#{" "}"
-   "`(" ")"
-   "^{" "}"
-   "#(" ")"
-   "#?(" ")"
-   "`#(" ")"
-   "'#(" ")"
-   "#?@(" ")"})
+; Chars to parse:
+;   "(" ")"     form
+;   "[" "]"     vector
+;   "{" "}"     map
+;   "'(" ")"    quoted form
+;   "#{" "}"    hash set
+;   "`(" ")"    syntax quoted form
+;   "^{" "}"    metadata map
+;   "#(" ")"    anonymous function
+;   "#?(" ")"   reader conditional
+;   "'#(" ")"   quoted anonymous function
+;   "`#(" ")"   syntax quoted anonymous function
+;   "#?@(" ")"  splicing reader conditional
+;   ignore anything between "" and ;\n
 
 (defn reg-block [html]
   (str html "<div class='reg block'>"))
@@ -52,66 +53,84 @@
   "reader conditional - #?()"
   (str html "<div class='rec block'>"))
 
-(defn san-block [html]
-  "syntax quoted anonymous function - `#()"
-  (str html "<div class='san block'>"))
-
 (defn qan-block [html]
   "quoted anonymous function - '#()"
   (str html "<div class='qan block'>"))
+
+(defn san-block [html]
+  "syntax quoted anonymous function - `#()"
+  (str html "<div class='san block'>"))
 
 (defn spl-block [html]
   "splicing reader conditional - #?@()"
   (str html "<div class='spl block'>"))
 
-(defn eq [x xs s]
-  (let [check (interleave xs (rest s))]
-    (and (= x (first s))
-         (not 
-           (some false? 
-             (for [[x1 x2] (partition 2 check)]
-               (= x1 x2)))))))
+(defn eq [l s]
+  (let [check (interleave l s)]
+    (not-any? false? 
+        (for [[x1 x2] (partition 2 check)]
+          (= x1 x2)))))
+
+(defn churn-endquote [charlist html]
+  (let [f (first charlist)
+        r (rest charlist)]
+    (cond (nil? f) (list () html)
+          (and (= f "\\") (= (first r) "\"")) 
+            (recur (rest r) (str html "\\\""))
+          (= f "\"") (list r (str html f))
+          :else (recur r (str html f)))))
+
+(defn churn-newline [charlist html]
+  (let [f (first charlist)
+        r (rest charlist)]
+    (cond (nil? f) (list () html)
+          (= f "\n") (list charlist html)
+          :else (recur r (str html f)))))
 
 (defn -blockify
-  [[x & xs] stack html]
-  (cond (nil? x) (if (empty? stack) html "The code could not be read.")
+  [charlist stack html]
+  (let [f (first charlist)
+        r (rest charlist)]
+    (cond (nil? f) (if (empty? stack) html "The code could not be read.")
         
-        (= x "(") (recur xs (conj stack ")") (reg-block html)) 
-        (= x "[") (recur xs (conj stack "]") (vec-block html))
-        (= x "{") (recur xs (conj stack "}") (map-block html))
-        (= x ")" (peek stack)) (recur xs (pop stack) (end-block html))
-        (= x "]" (peek stack)) (recur xs (pop stack) (end-block html))
-        (= x "}" (peek stack)) (recur xs (pop stack) (end-block html))
+        (= f "(") (recur r (conj stack ")") (reg-block html)) 
+        (= f "[") (recur r (conj stack "]") (vec-block html))
+        (= f "{") (recur r (conj stack "}") (map-block html))
         
-        ;(and (= x "'") (= (first xs) "("))
-        (eq x xs "'(")
-          (recur (rest xs) (conj stack ")") (quo-block html))
-        ;(and (= x "`") (= (first xs) "("))
-        (eq x xs "`(")
-          (recur (rest xs) (conj stack ")") (syn-block html))
-        ;(and (= x "#") (= (first xs) "{"))
-        (eq x xs "#{")
-          (recur (rest xs) (conj stack "}") (set-block html))
-        ;(and (= x "^") (= (first xs) "{"))
-        (eq x xs "^{")
-          (recur (rest xs) (conj stack "}") (met-block html))
-        ;(and (= x "#") (= (first xs) "("))
-        (eq x xs "#(")
-          (recur (rest xs) (conj stack ")") (ano-block html))
+        (eq charlist "'(")
+          (recur (rest r) (conj stack ")") (quo-block html))
+        (eq charlist "`(")
+          (recur (rest r) (conj stack ")") (syn-block html))
+        (eq charlist "#{")
+          (recur (rest r) (conj stack "}") (set-block html))
+        (eq charlist "^{")
+          (recur (rest r) (conj stack "}") (met-block html))
+        (eq charlist "#(")
+          (recur (rest r) (conj stack ")") (ano-block html))
 
-        ;(and (= x "#") (= (first xs) "?") (= (second xs) "("))
-        (eq x xs "#?(")
-          (recur (drop 2 xs) (conj stack ")") (rec-block html))
-        (eq x xs "`#(")
-          (recur (drop 2 xs) (conj stack ")") (san-block html))
-        (eq x xs "'#(")
-          (recur (drop 2 xs) (conj stack ")") (qan-block html))
-        (eq x xs "#?@(")
-          (recur (drop 3 xs) (conj stack ")") (spl-block html))
+        (eq charlist "#?(")
+          (recur (drop 2 r) (conj stack ")") (rec-block html))
+        (eq charlist "`#(")
+          (recur (drop 2 r) (conj stack ")") (san-block html))
+        (eq charlist "'#(")
+          (recur (drop 2 r) (conj stack ")") (qan-block html))
+
+        (eq charlist "#?@(")
+          (recur (drop 3 r) (conj stack ")") (spl-block html))
         
-        (= x "\n") (recur xs stack (str html "<br />"))
-        :else (recur xs stack 
-                (str html x))))
+        (= f ")" (peek stack)) (recur r (pop stack) (end-block html))
+        (= f "]" (peek stack)) (recur r (pop stack) (end-block html))
+        (= f "}" (peek stack)) (recur r (pop stack) (end-block html))
+
+        (= f "\"") 
+          (let [[c h] (churn-endquote (rest charlist) (str html f))]
+            (recur c stack h))
+        (= f ";") 
+          (let [[c h] (churn-newline (rest charlist) (str html f))]
+            (recur c stack h))
+
+        (= f "\n") (recur r stack (str html "<br />"))
+        :else (recur r stack (str html f)))))
    
 (defn blockify
   [source-code]
